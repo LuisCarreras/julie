@@ -1,8 +1,8 @@
 # Julie
 
-**[Website](https://anortham.github.io/julie/)** · **[Installation](#installation)** · **[Tools](#tools-10)** · **[External Extract](#external-extract-host-integration)** · **[Skills](#skills)** · **[37 Languages](#supported-languages-37)**
+**[Website](https://anortham.github.io/julie/)** · **[Installation](#installation)** · **[Tools](#tools-10)** · **[External Extract](#external-extract-host-integration)** · **[Skills](#skills)** · **[39 Languages](#supported-languages-39)**
 
-A cross-platform code intelligence server built in Rust, providing LSP-quality features across 37 programming languages via the Model Context Protocol (MCP).
+A cross-platform code intelligence server built in Rust, providing LSP-quality features across 39 user-facing language and manifest formats via the Model Context Protocol (MCP).
 
 ## Retired
 
@@ -39,8 +39,8 @@ The key difference from simpler code indexing tools: Julie doesn't just extract 
 ## Features
 
 - **Fast symbol search** with code-aware tokenization (CamelCase/snake_case splitting, stemming, <5ms)
-- **Cross-language code navigation** (go-to-definition, find-references) across 37 languages
-- **Test-aware search** — automatic test detection across all 37 languages with smart filtering (`exclude_tests`)
+- **Cross-language code navigation** (go-to-definition, find-references) across 39 user-facing language and manifest formats
+- **Test-aware search** — automatic test detection across supported source languages with smart filtering (`exclude_tests`)
 - **AST-aware refactoring** with workspace-wide rename and dry-run preview
 - **Operational metrics** — per-tool timing, context efficiency tracking, "bytes NOT injected" headline metric
 - **Multi-workspace support** for indexing and searching related codebases
@@ -69,7 +69,7 @@ Julie uses embeddings for semantic search, related symbol discovery, and intelli
 - `JULIE_NATIVE_SIDECAR_PROGRAM`: explicit path to the `julie-semantic-sidecar` binary (default: next to `julie-server`, then `PATH`).
 - `JULIE_NATIVE_SIDECAR_MODEL`: native sidecar model id.
 
-## Supported Languages (37)
+## Supported Languages (39)
 
 **Core:** Rust, TypeScript, JavaScript, Python, Java, C#, VB.NET, PHP, Ruby, Swift, Kotlin
 
@@ -80,6 +80,10 @@ Julie uses embeddings for semantic search, related symbol discovery, and intelli
 **Specialized:** GDScript, Vue, QML, R, Razor, SQL, HTML, CSS, Regex, Bash, PowerShell, Dart
 
 **Documentation and data:** Markdown, JSON, TOML, YAML, XML
+
+**Go metadata:** `gomod`, `gosum`
+
+The 39 user-facing outputs span 42 parser inventory labels. JSX and TSX are aliases; `qmldir` is a container format, not an additional language.
 
 ## Installation
 
@@ -358,7 +362,7 @@ See **[docs/EXTERNAL_EXTRACT.md](docs/EXTERNAL_EXTRACT.md)** for the full report
 
 ## Test Detection
 
-Julie automatically detects tests during indexing across all 37 languages, with no configuration required. It recognizes `#[test]`, `@Test`, `pytest`, `describe`/`it`, and other language-specific test patterns.
+Julie automatically detects tests during indexing across supported source languages, with no configuration required. It recognizes `#[test]`, `@Test`, `pytest`, `describe`/`it`, and other language-specific test patterns.
 
 - **Search filtering** — `fast_search` supports `exclude_tests` to keep test symbols out of production code results
 - **Test navigation** — `deep_dive` shows which test functions reference a symbol, so agents can find relevant tests without grepping
@@ -610,7 +614,7 @@ src/
 ├── cli_tools/       # Standalone CLI command bootstrap
 ├── registry/        # Registry DB and project logging
 ├── dashboard/       # Standalone read-only dashboard (htmx + Tera templates)
-├── extractors/      # Thin re-export of the external 37-language extractor crate
+├── extractors/      # Thin re-export of the external 39-output extractor crate
 ├── external_extract/ # Process-facing extractor commands
 ├── health/          # Health report and diagnostics
 ├── indexing_core/   # Shared indexing orchestration

@@ -167,6 +167,40 @@ fn docs_contract_tests_extractor_enrichment_surfaces_are_documented() {
 }
 
 #[test]
+fn docs_contract_tests_language_inventory_matches_pinned_extractors() {
+    let readme = read_repo_file("README.md");
+    assert!(readme.contains("**[39 Languages](#supported-languages-39)**"));
+    assert!(readme.contains("## Supported Languages (39)"));
+    assert!(!readme.contains("36 languages"));
+    for category in [
+        "**Core:** Rust, TypeScript, JavaScript, Python, Java, C#, VB.NET, PHP, Ruby, Swift, Kotlin",
+        "**Systems:** C, C++, Go, Lua, Zig",
+        "**Functional:** Elixir, Erlang, F#, Scala",
+        "**Specialized:** GDScript, Vue, QML, R, Razor, SQL, HTML, CSS, Regex, Bash, PowerShell, Dart",
+        "**Documentation and data:** Markdown, JSON, TOML, YAML, XML",
+        "**Go metadata:** `gomod`, `gosum`",
+    ] {
+        assert!(readme.contains(category), "README must include {category}");
+    }
+    assert!(readme.contains("42 parser inventory labels"));
+    assert!(readme.contains("JSX and TSX are aliases"));
+    assert!(readme.contains("`qmldir` is a container format"));
+
+    let operations = read_repo_file("docs/OPERATIONS.md");
+    assert!(operations.contains("`julie-extractors` v3.5.0"));
+    assert!(operations.contains("39 user-facing language and manifest formats"));
+    assert!(operations.contains("42 parser inventory labels"));
+    assert!(operations.contains("JSX and TSX are aliases"));
+    assert!(operations.contains("`qmldir` is a container format"));
+    for language in ["VB.NET", "Erlang", "XML", "F#", "gomod", "gosum"] {
+        assert!(
+            operations.contains(language),
+            "operations guide missing {language}"
+        );
+    }
+}
+
+#[test]
 fn docs_contract_tests_agent_instructions_fit_the_server_instruction_budget() {
     let instructions = read_repo_file("JULIE_AGENT_INSTRUCTIONS.md");
     let count = instructions.chars().count();
@@ -211,25 +245,9 @@ fn docs_contract_tests_agent_instructions_fit_the_server_instruction_budget() {
 #[test]
 fn docs_contract_tests_deployment_guidance_matches_runtime_contract() {
     let readme = read_repo_file("README.md");
-    assert!(readme.contains("## Supported Languages (37)"));
-    assert!(!readme.contains("36 languages"));
-    for category in [
-        "**Core:** Rust, TypeScript, JavaScript, Python, Java, C#, VB.NET, PHP, Ruby, Swift, Kotlin",
-        "**Systems:** C, C++, Go, Lua, Zig",
-        "**Functional:** Elixir, Erlang, F#, Scala",
-        "**Specialized:** GDScript, Vue, QML, R, Razor, SQL, HTML, CSS, Regex, Bash, PowerShell, Dart",
-        "**Documentation and data:** Markdown, JSON, TOML, YAML, XML",
-    ] {
-        assert!(readme.contains(category), "README must include {category}");
-    }
     assert!(readme.contains(
         "The plugin distributes six skills: `/dead-code-audit`, `/editing`, `/explore-area`, `/impact-analysis`, `/search-debug`, and `/web-research`."
     ));
-    let operations = read_repo_file("docs/OPERATIONS.md");
-    assert!(operations.contains("provides 37 user-facing languages"));
-    assert!(operations.contains("VB.NET"));
-    assert!(operations.contains("Erlang"));
-    assert!(operations.contains("XML"));
 
     let instructions = read_repo_file("JULIE_AGENT_INSTRUCTIONS.md");
     assert!(instructions.contains("`regions` filters stored `source_regions`"));
