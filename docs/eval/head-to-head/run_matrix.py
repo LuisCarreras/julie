@@ -939,7 +939,9 @@ def run_matrix(
             if row["julie"]["tool"] not in SUPPORTED_JULIE_TOOLS:
                 results.append(skipped(row, "julie", f"runner does not call {row['julie']['tool']}"))
                 continue
-            scored = execute_call(row, "julie", julie_procs[repo], dict(row["julie"]["args"]))
+            scored = execute_call(
+                row, "julie", julie_procs[repo], {**row["julie"]["args"], "workspace": path}
+            )
             scored["julie_backend"] = row.get("_julie_backend")
             apply_readiness_coverage(
                 coverage,

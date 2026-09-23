@@ -7,7 +7,6 @@ Retrieval only: search and symbol-inspect rows on the ten public repos in `../se
 From the Julie repo root:
 
 ```bash
-python3 docs/eval/head-to-head/run_matrix.py --self-check
 python3 docs/eval/head-to-head/run_matrix.py --validate
 python3 docs/eval/head-to-head/run_matrix.py --require-semantics
 python3 docs/eval/head-to-head/run_matrix.py --julie-backends auto,hybrid,semantic --require-semantics
