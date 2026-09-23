@@ -131,6 +131,7 @@ pub(crate) fn fixture_results(path: &str, language: &str) -> ExtractionResults {
         confidence: 1.0,
         receiver_type: Some("Outer".to_string()),
         code_context: None,
+        metadata: None,
     };
     let relationship = Relationship {
         id: "rel-1".to_string(),

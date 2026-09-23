@@ -214,9 +214,9 @@ During execution of `prepare`, the sidecar enforces strict safety guards:
 Julie exposes three execution modes controlling semantic capabilities across CLI subcommands and MCP protocol endpoints:
 
 ```bash
-julie-server fast-search "authentication handler" --semantics auto      # Default
-julie-server fast-search "authentication handler" --semantics required  # Strict fail-closed
-julie-server fast-search "authentication handler" --semantics off       # Pure lexical
+julie-server search "authentication handler" --semantics auto      # Default
+julie-server search "authentication handler" --semantics required  # Strict fail-closed
+julie-server search "authentication handler" --semantics off       # Pure lexical
 ```
 
 ### Mode Comparison Matrix
@@ -445,14 +445,14 @@ To qualify a native semantic installation for production or benchmarking, run th
 
 ### Inspecting Runtime Health
 
-Use `manage-workspace` to verify semantic status:
+Use the `workspace` CLI command to verify semantic status:
 
 ```bash
 # Check detailed workspace health:
-julie-server workspace --operation health
+julie-server workspace health
 
 # Check every checkout's vector and symbol counts:
-julie-server workspace --operation status
+julie-server workspace status
 ```
 
 Example health output:
@@ -501,7 +501,7 @@ julie-semantic-sidecar prepare --model bge-small-en-v1.5-f32
 
 # 2. Run query in strict required mode
 JULIE_EMBEDDING_PROVIDER=native \
-julie-server fast-search "repository lifecycle lock" --semantics required --json
+julie-server search "repository lifecycle lock" --semantics required --json
 ```
 
 #### 2. Switching Native Models
@@ -514,14 +514,14 @@ export JULIE_NATIVE_SIDECAR_MODEL=qwen3-0.6b-f16
 julie-semantic-sidecar prepare --model qwen3-0.6b-f16
 
 # 3. Refresh to build the generation for the new model
-julie-server workspace --operation refresh
+julie-server workspace refresh
 ```
 
 #### 3. Forcing CPU Execution for Predictable CI/Benchmarks
 ```bash
 export JULIE_EMBEDDING_PROVIDER=native
 export JULIE_SIDECAR_FORCE_BACKEND=cpu
-julie-server fast-search "symbol indexing" --semantics required
+julie-server search "symbol indexing" --semantics required
 ```
 
 ---

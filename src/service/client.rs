@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 #[derive(Debug)]
 pub enum ConnectError {
     VersionMismatch { service: String, client: String },
+    NotReady(u32),
     Unavailable(String),
 }
 
@@ -18,6 +19,7 @@ impl std::fmt::Display for ConnectError {
                     .map(|path| path.display().to_string())
                     .unwrap_or_else(|_| "julie-server".into())
             ),
+            ConnectError::NotReady(pid) => write!(f, "julie: service {pid} is not responding"),
             ConnectError::Unavailable(why) => write!(f, "julie: service unavailable: {why}"),
         }
     }
@@ -27,6 +29,7 @@ impl std::error::Error for ConnectError {}
 pub fn exit_code(e: &ConnectError) -> i32 {
     match e {
         ConnectError::VersionMismatch { .. } => 3,
+        ConnectError::NotReady(_) => 1,
         ConnectError::Unavailable(_) => 1,
     }
 }
@@ -118,10 +121,7 @@ async fn try_connect(paths: &RegistryPaths) -> Result<Option<ServiceClient>, Con
         }
         Err(_) => {
             if discovery::pid_alive(record.pid) {
-                return Err(ConnectError::Unavailable(format!(
-                    "service {} is shutting down",
-                    record.pid
-                )));
+                return Err(ConnectError::NotReady(record.pid));
             }
             discovery::remove_record(paths)
                 .map_err(|e| ConnectError::Unavailable(e.to_string()))?;
@@ -143,21 +143,33 @@ pub async fn connect_or_start_within(
     spawn: impl Fn() -> std::io::Result<()>,
     deadline: Duration,
 ) -> Result<ServiceClient, ConnectError> {
-    if let Some(client) = try_connect(paths).await? {
-        return Ok(client);
-    }
-    spawn().map_err(|e| ConnectError::Unavailable(format!("could not start service: {e}")))?;
     let give_up_at = Instant::now() + deadline;
-    while Instant::now() < give_up_at {
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        if let Some(client) = try_connect(paths).await? {
-            return Ok(client);
+    let mut spawned = false;
+    let mut not_ready = None;
+    loop {
+        match try_connect(paths).await {
+            Ok(Some(client)) => return Ok(client),
+            Ok(None) if !spawned => {
+                spawn().map_err(|e| {
+                    ConnectError::Unavailable(format!("could not start service: {e}"))
+                })?;
+                spawned = true;
+            }
+            Ok(None) => {}
+            Err(ConnectError::NotReady(pid)) => not_ready = Some(pid),
+            Err(error) => return Err(error),
         }
+        if Instant::now() >= give_up_at {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    Err(ConnectError::Unavailable(format!(
-        "service did not start within {}",
-        describe_deadline(deadline)
-    )))
+    Err(not_ready.map(ConnectError::NotReady).unwrap_or_else(|| {
+        ConnectError::Unavailable(format!(
+            "service did not start within {}",
+            describe_deadline(deadline)
+        ))
+    }))
 }
 
 fn describe_deadline(deadline: Duration) -> String {

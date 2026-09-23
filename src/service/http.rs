@@ -139,14 +139,49 @@ async fn checkouts(state: &AppState) -> Vec<CheckoutStatus> {
         .engine
         .execute(ToolRequest::new("manage_workspace", arguments), context)
         .await;
-    match reply {
-        Ok(reply) => serde_json::from_value(reply.result["structuredContent"]["checkouts"].clone())
-            .unwrap_or_default(),
+    let mut checkouts: Vec<CheckoutStatus> = match reply {
+        Ok(reply) => serde_json::from_value::<Vec<CheckoutStatus>>(
+            reply.result["structuredContent"]["checkouts"].clone(),
+        )
+        .unwrap_or_default(),
         Err(failure) => {
             tracing::warn!(code = %failure.code, message = %failure.message, "status: checkout scan failed");
-            Vec::new()
+            return Vec::new();
+        }
+    };
+    for checkout in &mut checkouts {
+        let root = std::path::PathBuf::from(&checkout.root);
+        let root = root.canonicalize().unwrap_or(root);
+        let binding = crate::request_engine::types::WorkspaceBinding {
+            workspace_id: checkout.workspace_id.clone(),
+            index_root: state
+                .engine
+                .runtimes
+                .registry_paths()
+                .workspace_index_dir(&checkout.workspace_id),
+            root: root.clone(),
+        };
+        let Some(runtime) = state.engine.runtimes.loaded_runtime(&binding).await else {
+            continue;
+        };
+        match crate::tools::workspace::commands::registry::status::checkout_status(
+            runtime.handler(),
+            checkout.workspace_id.clone(),
+            root,
+        )
+        .await
+        {
+            Ok(live) => *checkout = live,
+            Err(error) => {
+                tracing::warn!(
+                    workspace_id = %checkout.workspace_id,
+                    %error,
+                    "status: loaded checkout scan failed"
+                );
+            }
         }
     }
+    checkouts
 }
 
 async fn api_call(

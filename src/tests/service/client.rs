@@ -76,6 +76,40 @@ async fn spawn_hook_that_writes_a_record_lets_the_client_connect() {
 }
 
 #[tokio::test]
+async fn waits_for_a_recorded_service_to_start_listening() {
+    let running = Running::start(None).await;
+    let live = discovery::read_record(&running.paths).unwrap().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let paths = RegistryPaths::with_home(home.path().to_path_buf());
+    let unavailable_port = {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.local_addr().unwrap().port()
+    };
+    discovery::write_record(
+        &paths,
+        &ServiceRecord {
+            port: unavailable_port,
+            ..live.clone()
+        },
+    )
+    .unwrap();
+    let replacement_paths = paths.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        discovery::write_record(&replacement_paths, &live).unwrap();
+    });
+
+    let client = connect_or_start_within(
+        &paths,
+        || panic!("spawn must not run"),
+        Duration::from_secs(1),
+    )
+    .await
+    .unwrap();
+    assert_eq!(client.token, running.token);
+}
+
+#[tokio::test]
 async fn version_mismatch_is_reported_with_both_versions() {
     let running = Running::start(None).await;
     let mut record = discovery::read_record(&running.paths).unwrap().unwrap();
@@ -114,14 +148,16 @@ async fn try_connect_keeps_the_record_while_its_pid_is_alive() {
         },
     )
     .unwrap();
-    let result = connect_or_start(&paths, || panic!("spawn must not run")).await;
+    let result = connect_or_start_within(
+        &paths,
+        || panic!("spawn must not run"),
+        Duration::from_millis(200),
+    )
+    .await;
     match result {
-        Err(ConnectError::Unavailable(why)) => {
-            assert!(why.contains(&live_pid.to_string()), "got {why}");
-            assert!(why.contains("shutting down"), "got {why}");
-        }
-        Err(other) => panic!("expected unavailable, got {other:?}"),
-        Ok(_) => panic!("expected unavailable, got a client"),
+        Err(ConnectError::NotReady(pid)) => assert_eq!(pid, live_pid),
+        Err(other) => panic!("expected not ready, got {other:?}"),
+        Ok(_) => panic!("expected not ready, got a client"),
     }
     assert!(discovery::read_record(&paths).unwrap().is_some());
 }

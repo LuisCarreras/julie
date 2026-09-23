@@ -10,7 +10,7 @@ description = "Search + analysis layer above julie-core — Tantivy indexing, sc
 # Julie workspace crates
 julie-core = { path = "../julie-core" }
 julie-facts = { path = "../julie-facts" }
-julie-extractors = { git = "https://github.com/anortham/julie-extractors", tag = "v2.42.0" }
+julie-extractors = { git = "https://github.com/anortham/julie-extractors", tag = "v3.5.0" }
 
 # Full-text search engine with custom code tokenizer
 tantivy = "0.26.0"

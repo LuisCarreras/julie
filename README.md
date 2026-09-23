@@ -466,28 +466,26 @@ Julie exposes all 10 tools directly to the terminal through named subcommands, a
 
 ### 10 Named Tool Subcommands
 
-Every tool is directly accessible as a named subcommand (with ergonomic aliases):
+Every tool is directly accessible as a named subcommand:
 
 ```bash
 # Search & Navigation
-julie-server fast-search "query" --workspace . --standalone --json       # alias: search
+julie-server search "query" --workspace . --standalone --json
 julie-server search "TODO" --regions comment,doc_comment --json                   # content hits in comments only
-julie-server fast-refs "SymbolName" --workspace . --standalone --json     # alias: refs
-julie-server get-symbols --file src/lib.rs --workspace . --json          # alias: symbols
-julie-server get-context --concept "authentication" --workspace . --json   # alias: context
+julie-server refs "SymbolName" --workspace . --standalone --json
+julie-server symbols src/lib.rs --workspace . --json
+julie-server context "authentication" --workspace . --json
 julie-server call-path "fn_a" "fn_b" --workspace . --json
 julie-server blast-radius --files src/lib.rs --workspace . --json
 julie-server deep-dive "SymbolName" --workspace . --json
 julie-server patterns --operation search --pattern-id http.request --workspace . --json
 
-# Editing & Refactoring (Preview dry-run by default; execute mutation without --dry-run)
-julie-server edit-file --file src/lib.rs --find "old" --replace "new" --dry-run     # alias: edit
-julie-server rewrite-symbol --symbol "MyStruct" --action replace_body --content "..." # alias: rewrite
-julie-server rename-symbol --old-name "old" --new-name "new" --dry-run             # alias: rename
+# Editing (dry-run defaults to true; pass --dry-run false to apply)
+julie-server edit --old-text "old" --new-text "new" src/lib.rs --workspace . --json
 
 # Workspace Management & Dashboard
-julie-server manage-workspace --operation health --workspace . --json    # alias: workspace
-julie-server dashboard --foreground                                      # Launches browser UI
+julie-server workspace health --workspace . --json
+julie-server workspace dashboard --foreground
 ```
 
 ### Generic Tool Runner (`tool`)
@@ -538,9 +536,9 @@ julie-server tools replay --input trace.jsonl --json
 Control semantic vector readiness requirements across CLI operations:
 
 ```bash
-julie-server fast-search "auth flow" --semantics auto     # Default: use vectors if ready, degrade to lexical
-julie-server fast-search "auth flow" --semantics off      # Fast: zero model/vector work, pure lexical Tantivy search
-julie-server fast-search "auth flow" --semantics required # Strict: fails with exit 4 if vectors missing/stale/incompatible
+julie-server search "auth flow" --semantics auto     # Default: use vectors if ready, degrade to lexical
+julie-server search "auth flow" --semantics off      # Fast: zero model/vector work, pure lexical Tantivy search
+julie-server search "auth flow" --semantics required # Strict: fails with exit 4 if vectors missing/stale/incompatible
 ```
 
 ### Exit Codes and Output Envelope

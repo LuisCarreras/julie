@@ -127,7 +127,7 @@ const CASES: &[RealWorldCase] = &[
         path: "fixtures/real-world/javascript/vue.config.js",
         symbols: &[
             sym!("devServer", "property"),
-            sym!("chainWebpack", "function"),
+            sym!("chainWebpack", "method"),
         ],
         identifiers: &["resolve"],
     },
@@ -193,7 +193,7 @@ const CASES: &[RealWorldCase] = &[
             sym!("showMenubarAction"),
             sym!("qtquickMenuLoader"),
         ],
-        identifiers: &["appSettings"],
+        identifiers: &["ApplicationSettings"],
     },
     RealWorldCase {
         language: "r",

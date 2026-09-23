@@ -326,6 +326,85 @@ async fn status_carries_every_checkout() {
 }
 
 #[tokio::test]
+async fn status_uses_the_live_checkout_after_another_runtime_indexes_it() {
+    let running = Running::start(None).await;
+    let root_dir = tempfile::tempdir().unwrap();
+    let root = root_dir.path().canonicalize().unwrap();
+    std::fs::write(root.join(".git"), "gitdir: nowhere\n").unwrap();
+    std::fs::write(root.join("before.rs"), "pub fn before_status_probe() {}\n").unwrap();
+    let path = root.to_string_lossy().to_string();
+    let expected_id = crate::workspace::registry::generate_workspace_id(&path).unwrap();
+
+    let indexed = running
+        .api(
+            "manage_workspace",
+            serde_json::json!({"operation": "index", "path": path}),
+        )
+        .await;
+    assert_eq!(indexed.status(), 200);
+
+    let initial = running.status().await;
+    let initial_checkouts = initial["checkouts"].as_array().unwrap();
+    let initial_checkout = initial_checkouts
+        .iter()
+        .find(|checkout| checkout["workspace_id"] == expected_id)
+        .unwrap();
+    assert_eq!(initial_checkout["file_count"], 1);
+    assert_eq!(initial_checkout["symbol_count"], 1);
+
+    std::fs::write(root.join("after.rs"), "pub fn after_status_probe() {}\n").unwrap();
+    let indexed = running
+        .api(
+            "manage_workspace",
+            serde_json::json!({"operation": "index", "path": root.to_string_lossy()}),
+        )
+        .await;
+    assert_eq!(indexed.status(), 200);
+
+    let updated = running.status().await;
+    let updated_checkouts = updated["checkouts"].as_array().unwrap();
+    let updated_checkout = updated_checkouts
+        .iter()
+        .find(|checkout| checkout["workspace_id"] == expected_id)
+        .unwrap();
+    assert_eq!(updated_checkout["file_count"], 2);
+    assert_eq!(updated_checkout["symbol_count"], 2);
+    assert_eq!(updated_checkout["watcher"], "running");
+
+    std::fs::write(root.join("copy.rs"), "pub fn before_status_probe() {}\n").unwrap();
+    let indexed = running
+        .api(
+            "manage_workspace",
+            serde_json::json!({"operation": "index", "path": root.to_string_lossy()}),
+        )
+        .await;
+    assert_eq!(indexed.status(), 200);
+
+    running
+        .engine()
+        .runtimes
+        .set_retirement_policy(0, std::time::Duration::ZERO);
+    running
+        .engine()
+        .runtimes
+        .retire_idle_runtimes(std::time::Instant::now() + std::time::Duration::from_secs(1))
+        .await;
+
+    let cold = running.status().await;
+    assert_eq!(cold["loaded_runtime_count"], 1);
+    assert_eq!(cold["loaded_watcher_count"], 0);
+    assert_eq!(running.engine().runtimes.loaded_runtime_count().await, 1);
+    let cold_checkouts = cold["checkouts"].as_array().unwrap();
+    let cold_checkout = cold_checkouts
+        .iter()
+        .find(|checkout| checkout["workspace_id"] == expected_id)
+        .unwrap();
+    assert_eq!(cold_checkout["file_count"], 3);
+    assert_eq!(cold_checkout["symbol_count"], 3);
+    assert_eq!(cold_checkout["watcher"], "stopped");
+}
+
+#[tokio::test]
 async fn idle_exit_removes_service_json() {
     let running = Running::start(Some(Duration::from_millis(300))).await;
     let paths = running.paths.clone();

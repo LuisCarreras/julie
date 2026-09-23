@@ -312,6 +312,21 @@ impl RuntimeFactory {
         }
     }
 
+    pub(crate) async fn loaded_runtime(
+        &self,
+        binding: &WorkspaceBinding,
+    ) -> Option<Arc<RequestRuntime>> {
+        let key = RuntimeKey {
+            root: binding.root.clone(),
+            index_root: binding.index_root.clone(),
+        };
+        let slot = {
+            let runtimes = self.runtimes.read().await;
+            runtimes.get(&key).cloned()
+        }?;
+        slot.runtime.try_read().ok()?.clone()
+    }
+
     #[cfg(test)]
     pub(crate) async fn slot_count(&self) -> usize {
         self.runtimes.read().await.len()

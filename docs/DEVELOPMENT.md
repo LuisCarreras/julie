@@ -141,10 +141,10 @@ Julie supports two distinct storage topologies for development, testing, and pro
 
 ```bash
 # Run search using project-local standalone index
-target/debug/julie-server fast-search "my_symbol" --standalone --json
+target/debug/julie-server search "my_symbol" --standalone --json
 
 # Edit file using standalone mode (still synchronizes on source-edit.lock)
-target/debug/julie-server edit-file --params '{"file_path":"src/lib.rs","old_text":"foo","new_text":"bar"}' --standalone --json
+target/debug/julie-server edit src/lib.rs --old-text "foo" --new-text "bar" --standalone --json
 ```
 
 ## One Writer Per Checkout and Source Edits

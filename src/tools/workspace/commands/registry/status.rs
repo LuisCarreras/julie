@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use anyhow::{Result, anyhow};
-use julie_index::checkout_store::{FACTS_FILE, StoreStatus, TantivyState};
+use julie_index::checkout_store::{FACTS_FILE, StoreStatus, TANTIVY_DIR, TantivyState};
 use serde::{Deserialize, Serialize};
 
 use super::{ManageWorkspaceTool, registry_store_for_handler};
@@ -98,20 +98,32 @@ fn status_targets(
     }
 }
 
-async fn checkout_status(
+pub(crate) async fn checkout_status(
     handler: &JulieServerHandler,
     workspace_id: String,
     root: PathBuf,
 ) -> Result<CheckoutStatus> {
     let index_dir = handler.workspace_index_dir_for(&workspace_id).await?;
     let facts_path = index_dir.join(FACTS_FILE);
-    let facts_mtime = mtime(&facts_path);
+    let facts_mtime = [
+        mtime(&facts_path),
+        mtime(&facts_path.with_extension("sqlite-wal")),
+    ]
+    .into_iter()
+    .flatten()
+    .max();
     let (store_status, file_count, vector_scan_millis) = if facts_path.exists() {
-        match handler
-            .checkout_store_for_workspace(&workspace_id, &root)
-            .await
+        let live_store = if handler.loaded_workspace_id().as_deref() == Some(workspace_id.as_str())
         {
-            Ok(store) => {
+            handler
+                .get_workspace()
+                .await?
+                .map(|workspace| workspace.store)
+        } else {
+            None
+        };
+        match live_store {
+            Some(store) => {
                 let snapshot = store.current();
                 let file_count = snapshot.graph().paths().len() as i64;
                 let vector_scan_millis = snapshot
@@ -121,7 +133,13 @@ async fn checkout_status(
                     .map(|m| m / 1000);
                 (Some(store.status()), file_count, vector_scan_millis)
             }
-            Err(_) => (None, 0, None),
+            None => match facts_only_status(&index_dir, &facts_path) {
+                Ok((status, file_count)) => (Some(status), file_count, None),
+                Err(error) => {
+                    tracing::warn!(workspace_id = %workspace_id, %error, "status: checkout facts read failed");
+                    (None, 0, None)
+                }
+            },
         }
     } else {
         (None, 0, None)
@@ -137,6 +155,51 @@ async fn checkout_status(
         facts_mtime,
         vector_scan_millis,
     ))
+}
+
+fn facts_only_status(index_dir: &Path, facts_path: &Path) -> Result<(StoreStatus, i64)> {
+    let facts = julie_facts::store::FactsStore::open_read_only(facts_path)?;
+    let transaction = facts.conn().unchecked_transaction()?;
+    let file_count: i64 =
+        transaction.query_row("SELECT COUNT(*) FROM paths", [], |row| row.get(0))?;
+    let symbol_count: i64 = transaction.query_row(
+        "SELECT COUNT(*) FROM symbols s JOIN paths p ON p.blob_hash = s.blob_hash",
+        [],
+        |row| row.get(0),
+    )?;
+    let reader = facts.reader();
+    let blob_count = reader.blob_count()?;
+    let facts_bytes = reader.file_size_bytes()?;
+    let vector_count = reader.vector_count()?;
+    drop(reader);
+    transaction.commit()?;
+    let tantivy_meta = index_dir.join(TANTIVY_DIR).join("meta.json");
+    let tantivy_meta = std::fs::metadata(tantivy_meta).ok();
+    let tantivy = if tantivy_meta.is_some() {
+        TantivyState::Present
+    } else if file_count > 0 {
+        TantivyState::Stale
+    } else {
+        TantivyState::Absent
+    };
+    let status = StoreStatus {
+        blob_count,
+        facts_bytes,
+        tantivy,
+        tantivy_age_secs: tantivy_meta
+            .and_then(|meta| meta.modified().ok())
+            .and_then(|modified| modified.elapsed().ok())
+            .map(|age| age.as_secs()),
+        graph: julie_index::graph::GraphStats {
+            symbols: symbol_count as usize,
+            edges: 0,
+            load_millis: 0,
+            resident_bytes: 0,
+        },
+        last_write_at: None,
+        vector_count,
+    };
+    Ok((status, file_count))
 }
 
 fn status_from_store(
